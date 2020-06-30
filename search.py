@@ -41,7 +41,7 @@ def getAvailableLanguages(video_id, req_langs=['en','kr']):
           # languages[child.attrib["lang_code"]] = child.attrib["lang_translated"]
             languages.append(child.attrib['lang_code'])
     
-    except Exception as ex:
+    except Exception:
       import traceback; print(traceback.format_exc())
       pass
     
@@ -61,12 +61,13 @@ def download(video_id, languages=[], filetype='srt', root_dir='subtitles/'):
             
       if filetype == "srt":
           writeSRTFile(filename, subtitle)
+          print('Success :: [https://www.youtube.com/watch?v=%s]' % video_id)
       else:
-          writeXMLFile(filename)
+          writeXMLFile(filename, subtitle)
     
-    except Exception as ex:
+    except Exception:
       # import traceback; print(traceback.format_exc())
-      print(video_id)
+      print('Fail ::: ', video_id)
       pass
 
 
