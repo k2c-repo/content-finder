@@ -48,7 +48,7 @@ def getAvailableLanguages(video_id, req_langs=['en','kr']):
     return languages
 
 
-def download(video_id, languages=[], filetype='srt', root_dir='subtitles/'):
+def download(video_id, video_title, languages=[], filetype='srt', root_dir='subtitles/'):
   """Download subtitle of the selected language"""
   
   for i, lang in enumerate(languages):  
@@ -61,13 +61,13 @@ def download(video_id, languages=[], filetype='srt', root_dir='subtitles/'):
             
       if filetype == "srt":
           writeSRTFile(filename, subtitle)
-          print('Success :: [https://www.youtube.com/watch?v=%s]' % video_id)
+          print('Success :: [https://www.youtube.com/watch?v=%s] %s' % (video_id, video_title))
       else:
           writeXMLFile(filename, subtitle)
     
     except Exception:
       # import traceback; print(traceback.format_exc())
-      print('Fail ::: ', video_id)
+      print('Fail(Video ID) ::: ', video_id)
       pass
 
 
@@ -133,7 +133,7 @@ def youtube_search(options):
       
       if 'kr' in langs or 'en' in langs:
         # print(langs)
-        download(vidoeId, langs, 'srt')
+        download(vidoeId, search_result['snippet']['title'], langs, 'srt')
 
       # videos.append('%s\n[https://www.youtube.com/watch?v=%s]\n' % (search_result['snippet']['title'],
       #                            search_result['id']['videoId']))
@@ -151,8 +151,8 @@ def youtube_search(options):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument('--q', help='Search term', default='Google')
-  parser.add_argument('--max-results', help='Max results', default=1000)
+  parser.add_argument('--q', '-q', help='Search term', default='Google')
+  parser.add_argument('--max_results', '-m', help='Max results', default=1000)
   args = parser.parse_args()
 
   try:
