@@ -18,7 +18,6 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from database import database
-import io
 
 # Set DEVELOPER_KEY to the API key value from the APIs & auth > Registered apps
 # tab of
