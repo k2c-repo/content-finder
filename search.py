@@ -52,15 +52,16 @@ def getAvailableLanguages(video_id, req_langs=['en','ko']):
     return languages
 
 
-def download(video_id, video_title, languages=[], filetype='srt', root_dir='subtitles/'):
+def download(video_id, video_title, languages, search_key, filetype='srt', root_dir='subtitles/'):
   """Download subtitle of the selected language"""
 
   subtitles = {}
+  check = True
 
   for _, lang in enumerate(languages):  
     try:
       url = "http://www.youtube.com/api/timedtext?v={0}&lang={1}".format(video_id, lang)      
-      filename = root_dir + video_id + '_' + lang          
+      filename = root_dir + video_id + '_' + lang
       subtitle = urllib.request.urlopen(url)
       
       if filetype == "srt":
@@ -73,19 +74,23 @@ def download(video_id, video_title, languages=[], filetype='srt', root_dir='subt
     except Exception as ex:
       # import traceback; print(traceback.format_exc())
       print('Fail(Video ID) ::: ', video_id, ex)
-      pass
+      # pass
+      check = False
+      continue
 
 
   # Insert to Firebase Cloud Firestore
-  try:
-    data = {'title':video_title,
-            'link':'https://www.youtube.com/watch?v='+video_id,
-            'subtitles': subtitles}  
-    db.write('contents', video_id, **data)
+  if check:
+    try:
+      data = {'title': video_title,
+              'link': 'https://www.youtube.com/watch?v='+video_id,
+              'subtitles': subtitles,
+              'keyword': search_key}
+      db.write('contents', video_id, **data)
 
-    print('Firebase DB Insertion Completed!!')
-  except Exception as ex:
-    print(ex)    
+      print('Firebase DB Insertion Completed!!')
+    except Exception as ex:
+      print(ex)
 
 
 def writeXMLFile(filename, subtitle):
@@ -157,7 +162,7 @@ def youtube_search(options):
       
       if 'ko' in langs and 'en' in langs:
         # print(langs)
-        download(videoeId, videoTitle, langs, 'srt')
+        download(videoeId, videoTitle, langs, options.q, 'srt')
 
       # videos.append('%s\n[https://www.youtube.com/watch?v=%s]\n' % (search_result['snippet']['title'],
       #                            search_result['id']['videoId']))
