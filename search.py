@@ -13,6 +13,7 @@ from urllib.parse import urlparse, parse_qs, parse_qsl
 import argparse
 import sys
 import xml.etree.ElementTree as ET
+import json
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -78,7 +79,6 @@ def download(video_id, video_title, languages, search_key, filetype='srt', root_
       check = False
       continue
 
-
   # Insert to Firebase Cloud Firestore
   if check:
     try:
@@ -86,9 +86,10 @@ def download(video_id, video_title, languages, search_key, filetype='srt', root_
               'link': 'https://www.youtube.com/watch?v='+video_id,
               'subtitles': subtitles,
               'keyword': search_key}
+
       db.write('contents', video_id, **data)
 
-      print('Firebase DB Insertion Completed!!')
+      print('Firebase DB Insert Completed!!')
     except Exception as ex:
       print(ex)
 
@@ -97,6 +98,7 @@ def writeXMLFile(filename, subtitle):
     with open(filename + ".xml", 'w') as f:
         for line in subtitle:
             f.write(str(line))
+
 
 def writeSRTFile(filename, subtitle):
     tree = ET.parse(subtitle)
@@ -113,12 +115,14 @@ def writeSRTFile(filename, subtitle):
         
         return ''.join(str_list)
 
+
 def formatSRTTime(secTime):
     """Convert a time in seconds (in Google's subtitle) to SRT time format"""
     sec, micro = str(secTime).split('.')
     m, s = divmod(int(sec), 60)
     h, m = divmod(m, 60)
     return "{:02}:{:02}:{:02},{}".format(h,m,s,micro)
+
 
 def printSRTLine(line, start, duration, text):        
     """Print a subtitle in SRT format"""
@@ -128,9 +132,18 @@ def printSRTLine(line, start, duration, text):
     text = convertHTML(text.decode('utf-8'))
     return "{}\n{} --> {}\n{}\n\n".format(line, start, end, text)
 
+
 def convertHTML(text):
     return text.replace('&#39;', "'")
 
+
+def checkEmbeddable(videoId):
+  url = "https://www.googleapis.com/youtube/v3/videos?id=%s&part=status&key=%s" % (videoId, DEVELOPER_KEY)
+  response = urllib.request.urlopen(url)
+  
+  # data structure(json) : items -> status -> embeddable 
+  embeddable = json.loads(response.read()).get('items', [])[0]['status']['embeddable']
+  return embeddable
 
 
 def youtube_search(options):
@@ -155,6 +168,11 @@ def youtube_search(options):
       videoeId = search_result['id']['videoId']
       videoTitle = convertHTML(search_result['snippet']['title'])
       # print('vidoeId ::: ', vidoeId)
+
+      # print(checkEmbeddable(videoeId))
+      # Enable Check for iFrame Play
+      if not checkEmbeddable(videoeId):
+        continue
 
       # Check Subtitle existance
       langs = getAvailableLanguages(videoeId)
@@ -186,7 +204,7 @@ if __name__ == '__main__':
 
   try:
     # Process Flow
-    # youtube_search -> getAvailableLanguages -> download
+    # youtube_search -> checkEmbeddable -> getAvailableLanguages -> download
     youtube_search(args)
   except HttpError as e:
     print ('An HTTP error %d occurred:\n%s' % e.resp.status, e.content)
