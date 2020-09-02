@@ -169,7 +169,6 @@ def youtube_search(options):
       videoTitle = convertHTML(search_result['snippet']['title'])
       # print('vidoeId ::: ', vidoeId)
 
-      # print(checkEmbeddable(videoeId))
       # Enable Check for iFrame Play
       if not checkEmbeddable(videoeId):
         continue
