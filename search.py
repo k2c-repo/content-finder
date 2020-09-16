@@ -14,6 +14,7 @@ import argparse
 import sys
 import xml.etree.ElementTree as ET
 import json
+import uuid
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -28,7 +29,7 @@ DEVELOPER_KEY = 'AIzaSyBUmOlxftNSGf67nB5DOlBJpj4tImQBU1I'
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
-# Firebase DB init
+# Firebase DB initd
 db = database('key.json')
 
 def getAvailableLanguages(video_id, req_langs=['en','ko']):
@@ -53,16 +54,17 @@ def getAvailableLanguages(video_id, req_langs=['en','ko']):
     return languages
 
 
-def download(video_id, video_title, languages, search_key, filetype='srt', root_dir='subtitles/'):
+def download(param={}, filetype='srt', root_dir='subtitles/'):
+  # param = {'id':videoeId, 'title':videoTitle, 'regDate':videoRegDate, 'langs':langs, 'searchKey':options.q}
   """Download subtitle of the selected language"""
 
   subtitles = {}
   check = True
 
-  for _, lang in enumerate(languages):  
+  for _, lang in enumerate(param['langs']):  
     try:
-      url = "http://www.youtube.com/api/timedtext?v={0}&lang={1}".format(video_id, lang)      
-      filename = root_dir + video_id + '_' + lang
+      url = "http://www.youtube.com/api/timedtext?v={0}&lang={1}".format(param['id'], lang)      
+      filename = root_dir + param['id'] + '_' + lang
       subtitle = urllib.request.urlopen(url)
       
       if filetype == "srt":
@@ -70,11 +72,11 @@ def download(video_id, video_title, languages, search_key, filetype='srt', root_
       else:
           writeXMLFile(filename, subtitle)
 
-      print('Download Success[%s] :: [https://www.youtube.com/watch?v=%s] %s' % (lang, video_id, video_title))
+      print('Download Success[%s] :: [https://www.youtube.com/watch?v=%s] %s' % (lang, param['id'], param['title']))
     
     except Exception as ex:
       # import traceback; print(traceback.format_exc())
-      print('Fail(Video ID) ::: ', video_id, ex)
+      print('Fail(Video ID) ::: ', param['id'], ex)
       # pass
       check = False
       continue
@@ -82,12 +84,20 @@ def download(video_id, video_title, languages, search_key, filetype='srt', root_
   # Insert to Firebase Cloud Firestore
   if check:
     try:
-      data = {'title': video_title,
-              'link': 'https://www.youtube.com/watch?v='+video_id,
-              'subtitles': subtitles,
-              'keyword': search_key}
+      contentId = str(uuid.uuid4())
 
-      db.write('contents', video_id, **data)
+      data = {
+              'contentId': contentId,
+              'videoId': param['id'],
+              'title': param['title'],
+              'link': 'https://www.youtube.com/watch?v='+param['id'],
+              'subtitles': subtitles,
+              'keyword': param['searchKey'],
+              'regDate': param['regDate'],
+              'coverImg': param['coverImg']              
+             }
+
+      db.write('contents', param['id'], **data)
 
       print('Firebase DB Insert Completed!!')
     except Exception as ex:
@@ -155,6 +165,7 @@ def youtube_search(options):
     q=options.q,
     part='id,snippet',
     maxResults=options.max_results
+    # videoEmbeddable='true'
   ).execute()
 
   videos = []
@@ -167,7 +178,10 @@ def youtube_search(options):
     if search_result['id']['kind'] == 'youtube#video':
       videoeId = search_result['id']['videoId']
       videoTitle = convertHTML(search_result['snippet']['title'])
+      videoRegDate = search_result['snippet']['publishedAt']
+      coverImg = search_result['snippet']['thumbnails']['high']['url']
       # print('vidoeId ::: ', vidoeId)
+      # print(videoRegDate)
 
       # Enable Check for iFrame Play
       if not checkEmbeddable(videoeId):
@@ -179,7 +193,10 @@ def youtube_search(options):
       
       if 'ko' in langs and 'en' in langs:
         # print(langs)
-        download(videoeId, videoTitle, langs, options.q, 'srt')
+        param = {'id':videoeId, 'title':videoTitle, 'regDate':videoRegDate, 
+                 'langs':langs, 'searchKey':options.q, 'coverImg':coverImg}
+        
+        download(param, 'srt')
 
       # videos.append('%s\n[https://www.youtube.com/watch?v=%s]\n' % (search_result['snippet']['title'],
       #                            search_result['id']['videoId']))
